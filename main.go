@@ -74,12 +74,13 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("<%s> %s", s.Text, roastText)))
 
 	case "/meme":
-		// TODO: add threadlocking
-		attachment, err := getMeme()
-		if err != nil {
-			log.Println("[ERROR] getMeme")
-		}
-		go slackClient.PostMessage(s.ChannelID, slack.MsgOptionAttachments(attachment))
+		go func() {
+			attachment, err := getMeme()
+			if err != nil {
+				log.Println("[ERROR] getMeme")
+			}
+			slackClient.PostMessage(s.ChannelID, slack.MsgOptionAttachments(attachment))
+		}()
 		w.WriteHeader(http.StatusOK)
 
 	default:
