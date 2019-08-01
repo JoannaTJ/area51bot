@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	// godotenv, might screw deployment?
 	"github.com/joho/godotenv"
 	"github.com/nlopes/slack"
 )
@@ -78,8 +79,10 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 			attachment, err := getMeme()
 			if err != nil {
 				log.Println("[ERROR] getMeme")
+				slackClient.PostMessage(s.ChannelID, slack.MsgOptionText("[ERROR] failed to get meme", false))
+				return
 			}
-			slackClient.PostMessage(s.ChannelID, slack.MsgOptionAttachments(attachment))
+			slackClient.PostMessage(s.ChannelID, slack.MsgOptionText(fmt.Sprintf("<@%s> requested a meme", s.UserID), false), slack.MsgOptionAttachments(attachment))
 		}()
 		w.WriteHeader(http.StatusOK)
 
