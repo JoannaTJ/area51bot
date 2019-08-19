@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	// godotenv, might screw deployment?
+	// NOTE: godotenv, might screw deployment?
 	"github.com/joho/godotenv"
 	"github.com/nlopes/slack"
 )
@@ -19,6 +19,9 @@ import (
 const (
 	// Meme API
 	memeAPIEndpoint = "https://meme-api.herokuapp.com/gimme"
+
+	// Bot text
+	helpText = "Commands:\n/meme\n/dadjoke\n/roast\n"
 )
 
 var (
@@ -42,6 +45,7 @@ func main() {
 
 	slackClient = slack.New(os.Getenv("SLACK_ACCESS_TOKEN"))
 
+	// Defines "<host>/receive" as the API endpoint
 	http.HandleFunc("/receive", slashCommandHandler)
 
 	log.Println("[INFO] Server listening on port", os.Getenv("PORT"))
@@ -63,16 +67,17 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 	// Switch statement to handle custom commands
 	switch s.Command {
 	case "/roast":
-		log.Printf("[INFO] /roast %v\n", s.Text)
-
 		// Match @username handle
+		// TODO: Consiuder nivubg this to a function
 		matched, err := regexp.MatchString("^@([a-z0-9][a-z0-9._-]+)$", s.Text)
 		if !matched || err != nil {
 			w.Write([]byte("Invalid Command"))
 			return
 		}
-		roastText := getRoast()
-		w.Write([]byte(fmt.Sprintf("<%s> %s", s.Text, roastText)))
+		// s.Text: should be the target
+		roastText := fmt.Sprintf("<@%s> said to <%s>: %s", s.UserID, s.Text, getRoastString())
+		slackClient.PostMessage(s.ChannelID, slack.MsgOptionText(roastText, false))
+		w.WriteHeader(http.StatusOK)
 
 	case "/meme":
 		go func() {
@@ -92,7 +97,7 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getRoast() string {
+func getRoastString() string {
 	// Generate a roast string from file
 	file, err := os.Open("./static/roast.txt")
 	if err != nil {
@@ -102,6 +107,7 @@ func getRoast() string {
 
 	roastText, err := ioutil.ReadAll(file)
 	if err != nil {
+		// STRETCH: Improve error handling
 		log.Fatal(err)
 	}
 	roastSlice := strings.Split(string(roastText), "\n")
@@ -140,4 +146,21 @@ func getMeme() (slack.Attachment, error) {
 	}
 
 	return attachment, fmt.Errorf("[ERROR] StatusCode: %d", res.StatusCode)
+}
+
+func getComplimentString() string {
+	// Generate a roast string from file
+	file, err := os.Open("./static/compliments.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	complimentText, err := ioutil.ReadAll(file)
+	if err != nil {
+		// STRETCH: Improve error handling
+		log.Fatal(err)
+	}
+	complimentSlice := strings.Split(string(complimentText), "\n")
+	return complimentSlice[rand.Intn(len(complimentSlice))]
 }
